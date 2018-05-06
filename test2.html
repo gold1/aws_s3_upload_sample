@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>S3 Direct Multi Upload</title>
+<script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
+<script src="./aws_s3.js"></script>
+<script type="text/javascript">
+//<!--
+var s3 = null;
+$(function(){
+    $('#file_upload1').on('click',function(e){
+        e.preventDefault();
+        var options = {};
+        options.is_multi = true;
+        s3 = new AwsS3('./server2.php', $('#file1').get()[0].files[0], options);
+        s3.onUploadCompleted = function(result) {
+            alert('complete');
+        };
+        s3.onServerError = function(message) {
+            alert(message);
+        };
+        s3.start();
+    });
+    $('#file_download1').on('click',function(e){
+        e.preventDefault();
+        var childWindow = window.open('about:blank');
+        childWindow.location.href = './server2.php?command=download';
+        childWindow = null;
+    });
+});
+//-->
+</script>
+</head>
+<body>
+<div class="container">
+    <h2>ブラウザから直接S3と通信するサンプル(マルチパート)</h2>
+    <form action="./" method="POST">
+        <input type="file" id="file1" name="file" multiple><br>
+        <br>
+        <input type="button" id="file_upload1" value="アップロード">
+        <br>
+        <br>
+        <input type="button" id="file_download1" value="ダウンロード">
+    </form>
+    <br>
+    <br>
+    <div class="result"></div>
+</div>
+</body>
+</html>

@@ -18,6 +18,8 @@ class AwsS3
         'key'    => '',
         'secret' => '',
 	    'bucket' => '',
+	    'project' => '',
+	    'dir_path' => '',
 	    'region' => 'ap-northeast-1',
 	    'version' => '2006-03-01',
 	    'signature_version' => 'v4',
@@ -114,6 +116,82 @@ class AwsS3
 			throw new Exception("aws upload url error!");
 		}
 		return $url;
+	}
+
+	/**
+	 * ブラウザでの分割アップロードの開始用情報を echo する
+	 * ajax による呼び出しへの応答処理
+	 * @param string $key S3ファイルのパス
+	 * @param array $lengthes 分割したサイズ
+	 * @return void
+	 */
+	public function echoInfoCreateMultipartUploadAndExit($key, $lengthes)
+	{
+		$key = $this->removeHeadSlash($key);
+		$result = $this->createMultipartUpload($key);
+		$uploadId = $result->get('UploadId');
+		$urls = array();
+
+		foreach ($lengthes as $no => $length) {
+			$command = $this->client->getCommand('UploadPart', [
+			    'Bucket'   => $this->settings['bucket'],
+			    'Key'      => $key,
+			    'UploadId' => $uploadId,
+			    'PartNumber' => $no + 1,
+			    'ContentLength' => $lengthes[$no]
+			]);
+			$request = $this->client->createPresignedRequest($command, $this->settings['expires']);
+			$urls[] = $request->getUri()->__toString();
+		}
+
+		header('Content-Type: application/json');
+		echo json_encode(array(
+            'uploadId' => $uploadId,
+            'key' => $key,
+            'urls' => $urls,
+            'lengthes' => $lengthes
+		));
+		exit;
+	}
+
+	/**
+	 * ブラウザでの分割アップロードの開始用情報を取得する
+	 * @param string $source_path WEBサーバ側のファイルのパス
+	 * @param string $key S3ファイルのパス
+	 * @return Aws\Result
+	 */
+	public function createMultipartUpload($key)
+	{
+		$key = $this->removeHeadSlash($key);
+        $result = $this->client->createMultipartUpload(array(
+		    'Bucket' => $this->settings['bucket'],
+		    'Key'    => $key,
+        ));
+        return $result;
+	}
+
+	/**
+	 * ブラウザでの分割アップロードの開始用情報を取得する
+	 * @param string $key S3ファイルのパス
+	 * @param string $source_path WEBサーバ側のファイルのパス
+	 * @return Aws\Result
+	 */
+	public function completeMultipartUpload($key, $upload_id)
+	{
+        $partsModel = $this->client->listParts(array(
+		    'Bucket' => $this->settings['bucket'],
+            'Key' => $key,
+            'UploadId' => $upload_id,
+        ));
+        $result = $this->client->completeMultipartUpload(array(
+		    'Bucket' => $this->settings['bucket'],
+            'Key' => $key,
+            'UploadId' => $upload_id,
+            'MultipartUpload' => array(
+            	'Parts' => $partsModel['Parts'],
+            )
+        ));
+        return $result;
 	}
 
 	/**
