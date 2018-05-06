@@ -5,6 +5,7 @@
 $ composer install
 $ mkdir download
 $ chmod 777 download
+$ vi config.php
 ```
 
 ## S3 bucket CORS settings
